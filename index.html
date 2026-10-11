@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="相棒コア">
+<meta name="theme-color" content="#23282e">
+<title>相棒コア</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+<style>
+:root{
+  --plate:#3a4149; --plate-dk:#262b31; --plate-lt:#59626c;
+  --rivet:#9aa3ad; --amber:#ffb000; --amber-dim:#7a5400;
+  --screen:#140e05; --red:#e8452c; --cyan:#59d6ff;
+  --ui:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace;
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:#15181b}
+body{
+  margin:0;height:100%;font-family:var(--ui);color:#d9dee3;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#2e343a,#1d2125);
+  display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;
+  padding:8px max(8px,env(safe-area-inset-left,0px)) 8px max(8px,env(safe-area-inset-right,0px));
+  max-width:900px;margin-inline:auto;overflow:hidden;
+}
+/* 鋼板パネル＋リベット */
+.plate{
+  position:relative;border-radius:6px;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 2px),
+    linear-gradient(180deg,var(--plate-lt),var(--plate) 18%,var(--plate-dk));
+  border:1px solid #11151a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 0 rgba(0,0,0,.4),0 3px 8px rgba(0,0,0,.5);
+  padding:10px 14px;
+}
+.plate::before,.plate::after{
+  content:"";position:absolute;width:7px;height:7px;border-radius:50%;top:5px;
+  background:radial-gradient(circle at 35% 30%,#e3e8ec,var(--rivet) 40%,#3b4148 75%);
+  box-shadow:0 1px 1px rgba(0,0,0,.6);
+}
+.plate::before{left:5px}.plate::after{right:5px}
+
+/* ヘッダー */
+header{display:flex;align-items:center;gap:14px}
+.ident{flex:1;min-width:0}
+.ident h1{
+  margin:0;font-size:1.35rem;font-weight:800;letter-spacing:.12em;
+  color:#e9edf0;text-shadow:0 -1px 0 #000,0 1px 0 rgba(255,255,255,.15);
+}
+.ident .serial{font-family:var(--mono);font-size:.7rem;color:#9aa3ad;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lamps{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.lamp{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#b9c0c7}
+.lamp i{
+  width:10px;height:10px;border-radius:50%;background:#3a2f22;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.8),0 0 0 2px #1a1e22;
+}
+.lamp.on i{background:radial-gradient(circle at 40% 35%,#fff3c4,var(--amber) 55%,#a86f00);box-shadow:0 0 8px var(--amber),0 0 0 2px #1a1e22}
+.lamp.err i{background:radial-gradient(circle at 40% 35%,#ffd0c6,var(--red) 55%,#7d1d0e);box-shadow:0 0 8px var(--red),0 0 0 2px #1a1e22}
+.lamp.blink i{animation:blink .6s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* 主役：コアゲージ */
+.core{position:relative;width:86px;height:86px;flex:none}
+.core svg{width:100%;height:100%;display:block}
+.core .val{
+  position:absolute;inset:0;display:grid;place-content:center;text-align:center;
+  font-family:var(--mono);color:var(--amber);text-shadow:0 0 6px rgba(255,176,0,.6);
+}
+.core .val b{font-size:1.15rem;line-height:1}
+.core .val small{font-size:.58rem;color:#c99a3a;margin-top:2px}
+#ringArc{transition:stroke-dashoffset .35s ease}
+.core.spin #rotor{animation:spin 1.6s linear infinite;transform-origin:50px 50px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 制御モジュール */
+.controls{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.field label{display:block;font-size:.7rem;color:#aab2ba;margin:0 0 3px 2px}
+select,textarea{
+  width:100%;font:inherit;font-size:16px;color:var(--amber);
+  background:linear-gradient(180deg,#0d0a04,#1a1308);
+  border:1px solid #0a0c0e;border-radius:4px;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.8),0 1px 0 rgba(255,255,255,.12);
+}
+select{padding:7px 8px;-webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--amber) 50%),linear-gradient(135deg,var(--amber) 50%,transparent 50%),linear-gradient(180deg,#0d0a04,#1a1308);
+  background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%,0 0;background-size:5px 5px,5px 5px,100% 100%;background-repeat:no-repeat;padding-right:24px}
+.memo{grid-column:1/-1;display:none}
+.memo.open{display:block}
+.memo textarea{min-height:64px;padding:8px;resize:vertical;font-size:14px}
+
+/* 物理ボタン */
+.btn{
+  font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;color:#1b1406;
+  padding:9px 14px;border-radius:4px;border:1px solid #0e1114;
+  background:linear-gradient(180deg,#ffd36a,var(--amber) 45%,#c98900);
+  box-shadow:0 3px 0 #6b4900,0 4px 6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.6);
+  transform:translateY(0);transition:transform .05s,box-shadow .05s;white-space:nowrap;
+}
+.btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 0 0 #6b4900,0 1px 2px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.4)}
+.btn:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+.btn.steel{color:#e3e8ec;background:linear-gradient(180deg,#7a838d,#4c545d 50%,#363c43);box-shadow:0 3px 0 #1d2125,0 4px 6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn.hazard{
+  color:#fff;text-shadow:0 1px 2px #000;
+  background:repeating-linear-gradient(-45deg,#1c1c1c 0 8px,#e0a400 8px 16px);
+  box-shadow:0 3px 0 #000,0 4px 6px rgba(0,0,0,.5);
+}
+.btn:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* CRTスクリーン */
+.bezel{
+  min-height:0;border-radius:10px;padding:10px;
+  background:linear-gradient(180deg,#14171a,#22272c);
+  box-shadow:inset 0 0 0 1px #000,inset 0 2px 6px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.08);
+  display:flex;
+}
+.screen{
+  position:relative;flex:1;min-height:0;border-radius:6px;overflow:hidden;
+  background:radial-gradient(ellipse at center,#20160a 0%,var(--screen) 70%,#070502 100%);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.9);
+}
+.screen::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px);
+}
+#log{
+  position:absolute;inset:0;overflow-y:auto;padding:14px 14px 20px;
+  font-family:var(--mono);font-size:14px;line-height:1.6;color:var(--amber);
+  text-shadow:0 0 4px rgba(255,176,0,.35);-webkit-overflow-scrolling:touch;
+}
+.msg{margin:0 0 16px;max-width:72ch}
+.msg .who{font-size:.72rem;color:#c99a3a;margin-bottom:2px}
+.msg.user{margin-left:auto;text-align:left;color:#ffe3a3}
+.msg.user .body{border-left:3px solid var(--amber-dim);padding-left:10px}
+.msg.sys{color:#c99a3a;font-size:.8rem}
+.msg.err{color:#ff7a62;text-shadow:0 0 4px rgba(232,69,44,.4)}
+.body{white-space:pre-wrap;word-break:break-word}
+.body code{background:rgba(255,176,0,.12);padding:0 4px;border-radius:2px}
+.codebox{margin:8px 0;border:1px solid var(--amber-dim);border-radius:4px;background:rgba(0,0,0,.45);white-space:normal}
+.codebox .bar{display:flex;justify-content:space-between;align-items:center;padding:3px 8px;border-bottom:1px solid var(--amber-dim);font-size:.72rem;color:#c99a3a}
+.codebox pre{margin:0;padding:10px;overflow-x:auto;white-space:pre;font-size:13px;line-height:1.5}
+.copy{font:inherit;font-size:.72rem;color:var(--amber);background:none;border:1px solid var(--amber-dim);border-radius:3px;padding:2px 8px;cursor:pointer}
+.cursor::after{content:"█";animation:blink .8s steps(2) infinite;margin-left:2px}
+.empty{color:#c99a3a;font-size:.85rem;line-height:1.8;max-width:46ch}
+.empty strong{color:var(--amber)}
+
+/* 入力コンソール */
+.console{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.console textarea{min-height:46px;max-height:30vh;padding:10px;resize:none;line-height:1.45}
+.console .stack{display:flex;flex-direction:column;gap:8px}
+.sub{display:flex;gap:8px;grid-column:1/-1;font-size:.72rem;color:#9aa3ad;justify-content:space-between;align-items:center}
+.linkbtn{font:inherit;font-size:.72rem;color:#c5ccd3;background:none;border:none;text-decoration:underline;cursor:pointer;padding:2px}
+
+@media (max-width:560px){
+  .controls{grid-template-columns:1fr 1fr}
+  .controls #bootBtn{grid-column:1/-1}
+  .core{width:74px;height:74px}
+  .ident h1{font-size:1.15rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="plate">
+  <div class="ident">
+    <h1>相棒コア</h1>
+    <div class="serial" id="serial">端末内推論ユニット ／ 待機中</div>
+    <div class="lamps">
+      <span class="lamp" id="lampGpu"><i></i>GPU</span>
+      <span class="lamp" id="lampEng"><i></i>エンジン</span>
+      <span class="lamp" id="lampBusy"><i></i>処理中</span>
+    </div>
+  </div>
+  <div class="core" id="core" aria-live="polite">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <radialGradient id="hub" cx="40%" cy="35%"><stop offset="0" stop-color="#7c858f"/><stop offset="1" stop-color="#1c2025"/></radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="#1a1e22" stroke="#0b0d0f" stroke-width="2"/>
+      <g id="ticks" stroke="#5a636c" stroke-width="1.5"></g>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="#2c2010" stroke-width="7"/>
+      <circle id="ringArc" cx="50" cy="50" r="38" fill="none" stroke="#ffb000" stroke-width="7"
+        stroke-dasharray="238.76" stroke-dashoffset="238.76" transform="rotate(-90 50 50)"
+        style="filter:drop-shadow(0 0 3px #ffb000)"/>
+      <g id="rotor">
+        <circle cx="50" cy="50" r="29" fill="url(#hub)" stroke="#0b0d0f"/>
+        <path d="M50 23v6M50 71v6M23 50h6M71 50h6" stroke="#0b0d0f" stroke-width="3"/>
+      </g>
+      <circle cx="50" cy="50" r="22" fill="#100b04" stroke="#000"/>
+    </svg>
+    <div class="val"><b id="gVal">--</b><small id="gUnit">停止</small></div>
+  </div>
+</header>
+
+<section class="plate controls">
+  <div class="field">
+    <label for="project">相談するアプリ</label>
+    <select id="project"></select>
+  </div>
+  <div class="field">
+    <label for="model">モデル</label>
+    <select id="model"></select>
+  </div>
+  <button class="btn" id="bootBtn">エンジン起動</button>
+  <div class="field memo" id="memoWrap">
+    <label for="memo">このアプリのメモ（使っている技術・現状など。毎回AIに伝えます）</label>
+    <textarea id="memo" placeholder="例：Three.js r128、スマホ縦画面、ブロック破壊まで実装済み"></textarea>
+  </div>
+</section>
+
+<main class="bezel">
+  <div class="screen"><div id="log"></div></div>
+</main>
+
+<section class="plate console">
+  <textarea id="input" rows="2" placeholder="コードの質問、エラー文の貼り付けなど" disabled></textarea>
+  <div class="stack">
+    <button class="btn" id="sendBtn" disabled>送信</button>
+    <button class="btn hazard" id="stopBtn" hidden>停止</button>
+  </div>
+  <div class="sub">
+    <span id="hint">Ctrl / ⌘ + Enter でも送信</span>
+    <span>
+      <button class="linkbtn" id="memoBtn">メモを編集</button>
+      <button class="linkbtn" id="clearBtn">記録を消去</button>
+    </span>
+  </div>
+</section>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+
+/* ── 設定 ───────────────── */
+const MODELS = [
+  { base:"Qwen2.5-Coder-1.5B-Instruct", label:"標準 1.5B（約1GB）" },
+  { base:"Qwen2.5-Coder-0.5B-Instruct", label:"軽量 0.5B（約0.4GB）" },
+  { base:"Qwen2.5-Coder-3B-Instruct",   label:"高性能 3B（約2GB・iPhoneは不安定）" },
+];
+const PROJECTS = [
+  { key:"general", name:"汎用（指定なし）", ctx:"" },
+  { key:"block",   name:"ブロックゲーム", ctx:"スマホのブラウザで遊ぶマインクラフト風ブロックゲーム。" },
+  { key:"monster", name:"モンスターRPG", ctx:"オリジナルのモンスター収集・育成RPG。ブラウザ版プロトタイプから開始し、Unity/C#への移行も候補。" },
+  { key:"camera",  name:"構図ガイドカメラ", ctx:"スマホのカメラ映像に15種類の基本構図ガイドを重ねるWebアプリ。GitHub Pagesで公開。" },
+  { key:"lifeplan",name:"家計の健康診断", ctx:"ライフプラン・家計診断のWebツール。GitHub Pagesで公開、広告収益での一般公開を準備中。" },
+  { key:"watch",   name:"出店・発展度ウォッチ", ctx:"会津若松市のエリア別の出店・閉店・住宅・雇用・インフラの変化を可視化するWebサイト。" },
+  { key:"chara",   name:"キャラクターサイト", ctx:"タッチに反応するアメコミ調キャラクターのWebサイト。2Dイラストをパーツ分けして動かす方式。" },
+  { key:"agent",   name:"個人用AIエージェント", ctx:"音声/テキストで質問する個人用AIアプリ。iPhoneホーム画面用PWAをGitHub Pagesで公開、WebLLMで無料運用を目指す。" },
+  { key:"birth",   name:"出産準備ガイド", ctx:"妊娠〜産後の手続き・給付金をまとめたWebサイト。全国の自治体を選べる。" },
+];
+const BASE_PROMPT =
+  "あなたは個人開発者の相棒エンジニアです。日本語で簡潔に答えてください。" +
+  "コードは省略せず、そのまま動く形で、言語名付きのコードブロックで示してください。" +
+  "変更箇所だけで足りる場合は、どこを差し替えるかを明記してください。" +
+  "確信がない内容は推測だと明示してください。";
+const HISTORY_TURNS = 6;   // 小型モデルの文脈長に収めるため直近だけ送る
+
+/* ── 保存（失敗しても動く） ── */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+};
+
+/* ── 状態 ───────────────── */
+let webllm = null, engine = null, loadedId = null, f16 = false, busy = false;
+let projectKey = store.get("aibo:project", "general");
+let history = [];
+
+/* ── ゲージ ─────────────── */
+const ARC = 238.76;
+(function drawTicks(){
+  const g = $("#ticks"); let s = "";
+  for (let i = 0; i < 36; i++){
+    const a = i * 10 * Math.PI / 180, r1 = i % 3 ? 44 : 41, r2 = 47;
+    s += `<line x1="${50+r1*Math.sin(a)}" y1="${50-r1*Math.cos(a)}" x2="${50+r2*Math.sin(a)}" y2="${50-r2*Math.cos(a)}"/>`;
+  }
+  g.innerHTML = s;
+})();
+function gauge(ratio, val, unit, spinning){
+  $("#ringArc").style.strokeDashoffset = ARC * (1 - Math.max(0, Math.min(1, ratio)));
+  $("#gVal").textContent = val; $("#gUnit").textContent = unit;
+  $("#core").classList.toggle("spin", !!spinning);
+}
+function lamp(id, mode){ const el = $(id); el.classList.remove("on","err","blink"); if (mode) mode.split(" ").forEach(c => el.classList.add(c)); }
+
+/* ── 表示 ───────────────── */
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+function inline(s){
+  return esc(s).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+}
+function render(text){
+  let out = "", last = 0;
+  const re = /```([\w+#.-]*)\n?([\s\S]*?)(?:```|$)/g; let m;
+  while ((m = re.exec(text))){
+    out += inline(text.slice(last, m.index));
+    out += `<div class="codebox"><div class="bar"><span>${esc(m[1] || "code")}</span><button class="copy" type="button">コピー</button></div><pre>${esc(m[2].replace(/\n$/, ""))}</pre></div>`;
+    last = re.lastIndex;
+    if (m[0].length === 0) break;
+  }
+  return out + inline(text.slice(last));
+}
+function addMsg(role, text){
+  const who = { user:"あなた", assistant:"相棒", sys:"システム", err:"警告" }[role];
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.innerHTML = `<div class="who">${who}</div><div class="body"></div>`;
+  el.querySelector(".body").innerHTML = render(text);
+  $("#log").appendChild(el); scrollDown();
+  return el;
+}
+function scrollDown(){ const l = $("#log"); l.scrollTop = l.scrollHeight; }
+function showEmpty(){
+  $("#log").innerHTML = `<div class="empty">
+    <p><strong>エンジン起動</strong>を押すと、AIモデルを端末に読み込みます。</p>
+    <p>初回はダウンロードに数分かかります（Wi-Fi推奨）。2回目からは端末に保存されたデータで起動し、通信なしで動きます。</p>
+    <p>上の「相談するアプリ」を選ぶと、そのアプリの前提をAIに伝えた状態で相談できます。</p></div>`;
+}
+function renderHistory(){
+  $("#log").innerHTML = "";
+  if (!history.length){ showEmpty(); return; }
+  history.forEach(h => addMsg(h.role, h.content));
+}
+
+$("#log").addEventListener("click", async e => {
+  const b = e.target.closest(".copy"); if (!b) return;
+  const code = b.closest(".codebox").querySelector("pre").textContent;
+  try { await navigator.clipboard.writeText(code); }
+  catch {
+    const t = document.createElement("textarea"); t.value = code; document.body.appendChild(t);
+    t.select(); document.execCommand("copy"); t.remove();
+  }
+  b.textContent = "コピー済み"; setTimeout(() => b.textContent = "コピー", 1500);
+});
+
+/* ── プロジェクト ─────────── */
+function loadProject(){
+  history = store.get("aibo:hist:" + projectKey, []);
+  $("#memo").value = store.get("aibo:memo:" + projectKey, "");
+  renderHistory();
+}
+PROJECTS.forEach(p => $("#project").add(new Option(p.name, p.key)));
+$("#project").value = projectKey;
+$("#project").addEventListener("change", e => { projectKey = e.target.value; store.set("aibo:project", projectKey); loadProject(); });
+$("#memo").addEventListener("input", e => store.set("aibo:memo:" + projectKey, e.target.value));
+$("#memoBtn").addEventListener("click", () => { $("#memoWrap").classList.toggle("open"); if ($("#memoWrap").classList.contains("open")) $("#memo").focus(); });
+$("#clearBtn").addEventListener("click", () => {
+  if (busy || !confirm("このアプリの会話記録を消去しますか？")) return;
+  history = []; store.set("aibo:hist:" + projectKey, history); renderHistory();
+});
+
+MODELS.forEach(m => $("#model").add(new Option(m.label, m.base)));
+$("#model").value = store.get("aibo:model", MODELS[0].base);
+$("#model").addEventListener("change", e => {
+  store.set("aibo:model", e.target.value);
+  if (engine) $("#bootBtn").textContent = "モデル切替";
+});
+
+/* ── GPU 確認 ─────────────── */
+async function checkGPU(){
+  if (!navigator.gpu) return false;
+  try {
+    const ad = await navigator.gpu.requestAdapter();
+    if (!ad) return false;
+    f16 = ad.features.has("shader-f16");
+    return true;
+  } catch { return false; }
+}
+
+/* ── 起動 ───────────────── */
+async function boot(){
+  if (busy) return;
+  const ok = await checkGPU();
+  if (!ok){
+    lamp("#lampGpu", "err");
+    addMsg("err", "この端末・ブラウザではWebGPUが使えないため、AIを動かせません。iPhoneはiOS 26以降のSafari、パソコンは最新のChromeかEdgeで開いてください。");
+    return;
+  }
+  lamp("#lampGpu", "on");
+  busy = true; $("#bootBtn").disabled = true; setInput(false);
+  lamp("#lampEng", "on blink"); gauge(0, "0", "読込 %", true);
+
+  try {
+    if (!webllm) webllm = await import("https://esm.run/@mlc-ai/web-llm@0.2.78");
+    const list = webllm.prebuiltAppConfig.model_list.map(m => m.model_id);
+    const base = $("#model").value;
+    const cands = (f16 ? ["q4f16_1","q4f32_1"] : ["q4f32_1","q4f16_1"]).map(q => `${base}-${q}-MLC`);
+    const id = cands.find(c => list.includes(c));
+    if (!id) throw new Error("選んだモデルがこのバージョンのWebLLMに見つかりません。別のモデルを選んでください。");
+
+    const progress = r => {
+      const p = r.progress ?? 0;
+      gauge(p, Math.round(p * 100), "読込 %", true);
+      $("#serial").textContent = r.text || "読込中";
+    };
+    if (engine){ engine.setInitProgressCallback?.(progress); await engine.reload(id); }
+    else engine = await webllm.CreateMLCEngine(id, { initProgressCallback: progress });
+
+    loadedId = id;
+    lamp("#lampEng", "on");
+    gauge(1, "OK", "稼働中", false);
+    $("#serial").textContent = id;
+    $("#bootBtn").textContent = "再起動";
+    if (!history.length) $("#log").innerHTML = "";
+    addMsg("sys", "エンジン稼働。質問をどうぞ。");
+  } catch (err){
+    lamp("#lampEng", "err"); gauge(0, "ERR", "停止", false);
+    $("#serial").textContent = "起動失敗";
+    const msg = String(err?.message || err);
+    addMsg("err", "起動できませんでした：" + msg +
+      (/memory|OOM|Device was lost/i.test(msg) ? "\nメモリ不足の可能性があります。軽量 0.5B を選んで、他のタブを閉じてから再試行してください。" : "") +
+      (/fetch|network|Failed to load/i.test(msg) ? "\nモデルのダウンロードに失敗しました。通信環境を確認してください。" : ""));
+  } finally {
+    busy = false; $("#bootBtn").disabled = false; setInput(!!loadedId);
+  }
+}
+$("#bootBtn").addEventListener("click", boot);
+
+/* ── 送信 ───────────────── */
+function setInput(on){
+  $("#input").disabled = !on; $("#sendBtn").disabled = !on;
+}
+function systemPrompt(){
+  const p = PROJECTS.find(x => x.key === projectKey);
+  const memo = $("#memo").value.trim();
+  let s = BASE_PROMPT;
+  if (p?.ctx) s += "\n\n相談中のアプリ：" + p.ctx;
+  if (memo) s += "\n補足メモ：" + memo;
+  return s;
+}
+
+async function send(){
+  const text = $("#input").value.trim();
+  if (!text || busy || !engine) return;
+  if (!history.length) $("#log").innerHTML = "";
+  $("#input").value = ""; autoGrow();
+  history.push({ role:"user", content:text }); addMsg("user", text);
+
+  busy = true; setInput(false);
+  $("#sendBtn").hidden = true; $("#stopBtn").hidden = false;
+  lamp("#lampBusy", "on blink");
+
+  const el = addMsg("assistant", ""); const body = el.querySelector(".body");
+  body.classList.add("cursor");
+  let out = "", n = 0; const t0 = performance.now();
+
+  try {
+    const messages = [{ role:"system", content:systemPrompt() }, ...history.slice(-HISTORY_TURNS)];
+    const stream = await engine.chat.completions.create({ messages, stream:true, temperature:0.3, max_tokens:1024 });
+    for await (const c of stream){
+      const d = c.choices?.[0]?.delta?.content || "";
+      if (!d) continue;
+      out += d; n++;
+      body.innerHTML = render(out);
+      const sec = (performance.now() - t0) / 1000;
+      const tps = sec > 0 ? n / sec : 0;
+      gauge(Math.min(tps / 40, 1), tps.toFixed(1), "トークン/秒", true);
+      scrollDown();
+    }
+  } catch (err){
+    out += (out ? "\n\n" : "") + "［中断：" + (err?.message || err) + "］";
+    body.innerHTML = render(out);
+  } finally {
+    body.classList.remove("cursor");
+    if (out) history.push({ role:"assistant", content:out });
+    store.set("aibo:hist:" + projectKey, history.slice(-40));
+    busy = false; setInput(true);
+    $("#sendBtn").hidden = false; $("#stopBtn").hidden = true;
+    lamp("#lampBusy", null);
+    gauge(1, "OK", "稼働中", false);
+    $("#input").focus();
+  }
+}
+$("#sendBtn").addEventListener("click", send);
+$("#stopBtn").addEventListener("click", () => engine?.interruptGenerate());
+$("#input").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); send(); } });
+function autoGrow(){ const t = $("#input"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, innerHeight * .3) + "px"; }
+$("#input").addEventListener("input", autoGrow);
+
+/* ── 初期化 ─────────────── */
+loadProject();
+checkGPU().then(ok => lamp("#lampGpu", ok ? "on" : "err"));
+</script>
+</body>
+</html>
